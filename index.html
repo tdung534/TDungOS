@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trình Tạo Ảnh Kép - Chế Độ Căn Gióng (Tracing)</title>
+    <!-- Cropper.js CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Paraglide';
+            src: url('https://codetienich.github.io/dulieu/0255-LNTH-Paraglide.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Tonos';
+            src: url('https://codetienich.github.io/dulieu/Tonos-Regular.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Athletic';
+            src: url('https://codetienich.github.io/dulieu/SVN-New-Athletic-M54.ttf') format('truetype');
+        }
+
+        :root {
+            --bg: #1f2937;
+            --panel: #111827;
+            --text: #f3f4f6;
+            --accent: #3b82f6;
+        }
+
+        body {
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 350px;
+            background: var(--panel);
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-right: 1px solid #374151;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            padding: 20px;
+            background-image: linear-gradient(#374151 1px, transparent 1px), linear-gradient(90deg, #374151 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .canvas-grid {
+            display: flex;
+            gap: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        }
+
+        .canvas-wrapper {
+            border: 1px solid #4b5563;
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+            height: 75vh;
+            width: auto;
+            max-height: 800px;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            margin-top: 0;
+            border-bottom: 1px solid #374151;
+            padding-bottom: 10px;
+            color: white;
+        }
+
+        .group {
+            margin-bottom: 15px;
+            background: #1f2937;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #374151;
+        }
+
+        .group label {
+            display: block;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            color: #d1d5db;
+            font-weight: 500;
+        }
+
+        .upload-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: #374151;
+            border: 1px dashed #9ca3af;
+            color: white;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 6px;
+            box-sizing: border-box;
+            transition: border 0.2s;
+            margin-bottom: 8px;
+        }
+
+        .upload-btn:hover {
+            border-color: var(--accent);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            accent-color: var(--accent);
+        }
+
+        .val {
+            font-size: 0.85rem;
+            width: 35px;
+            text-align: right;
+            background: #111827;
+            padding: 4px 6px;
+            border-radius: 4px;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        button.btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: opacity 0.2s;
+        }
+
+        button.btn:hover {
+            opacity: 0.8;
+        }
+
+        button.btn-success {
+            background: #10b981;
+        }
+
+        .trace-warning {
+            color: #f59e0b;
+            font-size: 0.8rem;
+            border-left: 3px solid #f59e0b;
+            padding-left: 8px;
+            margin-top: 5px;
+            font-weight: 500;
+        }
+
+        .mobile-tabs {
+            display: none;
+            width: 100%;
+            background: #111827;
+            padding: 10px;
+            box-sizing: border-box;
+            gap: 10px;
+            border-bottom: 1px solid #374151;
+        }
+
+        .m-tab {
+            flex: 1;
+            padding: 10px;
+            background: #374151;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .m-tab.active {
+            background: var(--accent);
+        }
+
+        /* --- RESPONSIVE MOBILE --- */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+                /* Đổi thành dọc */
+            }
+
+            .main {
+                flex: 0 0 45vh;
+                /* Nửa trên ghim Canvas */
+                padding: 10px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start;
+            }
+
+            .mobile-tabs {
+                display: flex;
+                /* Hiện Tab chuyển ảnh */
+            }
+
+            .canvas-grid {
+                flex: 1;
+                width: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                overflow: hidden;
+            }
+
+            .canvas-wrapper {
+                height: 100%;
+            }
+
+            canvas {
+                height: 100%;
+                max-height: none;
+            }
+
+            /* Ẩn Ảnh bên phải mặc định trên mobile */
+            #wrapRight {
+                display: none;
+            }
+
+            .sidebar {
+                flex: 1;
+                /* Nửa dưới là thanh cuộn chức năng */
+                width: 100%;
+                border-right: none;
+                border-top: 1px solid #374151;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="group">
+            <label>Tải Ảnh Thiết Kế Của Bạn</label>
+            <label class="upload-btn">
+                Tải ảnh Nền (Background)
+                <input type="file" id="uploadBg" accept="image/*">
+            </label>
+            <label class="upload-btn">
+                Tải ảnh Giữa (Chính giữa 2 khung)
+                <input type="file" id="uploadFg" accept="image/*">
+            </label>
+        </div>
+
+        <h3
+            style="font-size: 1rem; color: var(--accent); margin-top: 5px; border-bottom: 1px solid #374151; padding-bottom:5px;">
+            Chỉnh Khối Ảnh Giữa</h3>
+
+        <div class="group">
+            <label>Phóng to/Thu nhỏ Ảnh Giữa (Kích thước)</label>
+            <div class="slider-row">
+                <input type="range" id="fgScale" min="10" max="300" value="100">
+                <span class="val" id="fgScaleVal">100</span>
+            </div>
+        </div>
+        <div class="group">
+            <label>Độ Mờ Khối Ảnh Giữa</label>
+            <div class="slider-row">
+                <input type="range" id="fgOpacity" min="10" max="100" value="100">
+                <span class="val" id="fgOpacityVal">100</span>
+            </div>
+        </div>
+        <div class="group">
+            <label>Bo tròn phần dư (Xóa Nhòa Nhẹ)</label>
+            <div class="slider-row">
+                <input type="range" id="fgRadius" min="0" max="250" value="24">
+                <span class="val" id="fgRadiusVal">24</span>
+            </div>
+        </div>
+
+        <h3
+            style="font-size: 1rem; color: #10b981; margin-top: 15px; border-bottom: 1px solid #374151; padding-bottom:5px;">
+            Chữ ca sĩ (Trái)</h3>
+
+        <div class="group">
+            <label>Tên Ca Sĩ</label>
+            <input type="text" id="artistText" value="Mai Tiến Dũng"
+                style="width:100%; padding:8px; background:#1f2937; border:1px solid #374151; color:white; border-radius:4px; box-sizing:border-box;">
+        </div>
+        <div class="group">
+            <label>Cỡ chữ Ca Sĩ</label>
+            <div class="slider-row"><input type="range" id="artistSize" min="20" max="200" value="34"><span class="val"
+                    id="artistSizeVal">34</span></div>
+        </div>
+        <div class="group" style="margin-bottom:0;">
+            <label>Dóng Khung (Chỉ để Test - Xóa Lại Nếu Cần)</label>
+            <!-- Ẩn slider X, Y -->
+        </div>
+
+        <h3
+            style="font-size: 1rem; color: #10b981; margin-top: 15px; border-bottom: 1px solid #374151; padding-bottom:5px;">
+            Chữ bài hát (Trái)</h3>
+
+        <div class="group">
+            <label>Tên Bài Hát</label>
+            <input type="text" id="songText" value="NGƯỜI NHƯ ANH"
+                style="width:100%; padding:8px; background:#1f2937; border:1px solid #374151; color:white; border-radius:4px; box-sizing:border-box;">
+        </div>
+        <div class="group">
+            <label>Cỡ chữ Bài Hát</label>
+            <div class="slider-row"><input type="range" id="songSize" min="20" max="300" value="80"><span class="val"
+                    id="songSizeVal">80</span></div>
+        </div>
+        <div class="group" style="margin-bottom:0;">
+            <!-- Ẩn slider X, Y -->
+        </div>
+
+        <h3
+            style="font-size: 1rem; color: #10b981; margin-top: 15px; border-bottom: 1px solid #374151; padding-bottom:5px;">
+            Lời bài hát (Phải)</h3>
+
+        <div class="group">
+            <label>Nội Dung Lời</label>
+            <textarea id="lyricText" rows="6"
+                style="width:100%; padding:8px; background:#1f2937; border:1px solid #374151; color:white; border-radius:4px; box-sizing:border-box; font-family:-apple-system, BlinkMacSystemFont, sans-serif;">Chúng ta gần nhau mà như cách xa
+Chúng ta gần nhau mà lòng băng giá
+Tình yêu có phải khi ta chấp nhận
+Rời xa để thấy yêu nhau nhiều hơn
+
+Anh mong rằng em sẽ có một người
+Yêu em cùng em đến hết cuộc đời
+Một người mới luôn khiến em vui
+Chẳng phải như anh chỉ làm em khóc
+
+Nước mắt cho em đã quá đủ rồi
+Nỗi xót xa em nhận lấy nhiều rồi
+Xin lỗi anh không như những gì mà em mong
+Một người như anh
+
+Và anh biết rằng nơi trái tim em còn
+Còn mong nhớ anh từng giờ
+Nỗi đau anh biết rằng là
+Thật khó để mình quên đi</textarea>
+        </div>
+        <div class="group">
+            <label>Cỡ chữ Lời</label>
+            <div class="slider-row"><input type="range" id="lyricSize" min="20" max="150" value="29"><span class="val"
+                    id="lyricSizeVal">29</span></div>
+        </div>
+        <div class="group">
+            <label>Khoảng cách dòng (Line Height)</label>
+            <div class="slider-row"><input type="range" id="lyricLineHeight" min="20" max="150" value="49"><span
+                    class="val" id="lyricLineHeightVal">49</span></div>
+        </div>
+        <div class="group">
+            <label>Dịch lên/xuống (Y)</label>
+            <div class="slider-row"><input type="range" id="lyricY" min="0" max="1440" value="747"><span class="val"
+                    id="lyricYVal">747</span></div>
+        </div>
+
+        <button class="btn btn-success" onclick="downloadImage()">⬇ Tải Xuống 2 Tấm Cuối</button>
+    </div>
+
+    <!-- KHU VỰC CANVAs KHÉP KÍN 2 TRANG -->
+    <div class="main">
+        <div class="mobile-tabs">
+            <button class="m-tab active" id="tabLeft" onclick="switchTab('left')">👁 Xem Ảnh Trái</button>
+            <button class="m-tab" id="tabRight" onclick="switchTab('right')">👁 Xem Ảnh Phải</button>
+        </div>
+        <div class="canvas-grid">
+            <div class="canvas-wrapper" id="wrapLeft"><canvas id="canvasLeft"></canvas></div>
+            <div class="canvas-wrapper" id="wrapRight"><canvas id="canvasRight"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Màn hình Modal Crop ẢNH -->
+    <div id="cropperModal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9999; flex-direction:column; align-items:center; justify-content:center;">
+        <div style="width:80%; height:80%; max-width:800px; max-height:600px; background:#111; overflow:hidden;">
+            <img id="cropperImage" src="" style="display:block; max-width:100%;">
+        </div>
+        <div style="margin-top:20px; display:flex; gap:15px;">
+            <button class="btn" style="width:auto; padding:10px 30px; background:#4b5563;"
+                onclick="closeCropper()">Hủy</button>
+            <button class="btn btn-success" style="width:auto; padding:10px 30px;" onclick="applyCrop()">Áp dụng
+                Cắt</button>
+        </div>
+    </div>
+
+    <!-- Cropper.js JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script>
+        const C_WIDTH = 1080;
+        const C_HEIGHT = 1440;
+
+        const canvasLeft = document.getElementById('canvasLeft');
+        const canvasRight = document.getElementById('canvasRight');
+        const ctxL = canvasLeft.getContext('2d');
+        const ctxR = canvasRight.getContext('2d');
+
+        canvasLeft.width = C_WIDTH; canvasLeft.height = C_HEIGHT;
+        canvasRight.width = C_WIDTH; canvasRight.height = C_HEIGHT;
+
+        let imgBg = null;
+        let imgFg = null;
+
+        // Biến lưu trữ instance của Cropper
+        let cropper = null;
+        let currentCropTarget = null; // 'bg' hoặc 'fg'
+
+        const STATE = {
+            fgOpacity: 100,
+            fgScale: 100, fgRadius: 24,
+            artistSize: 34,
+            songSize: 80,
+            lyricSize: 29, lyricLineHeight: 49, lyricY: 747
+        };
+
+        // Ràng buộc Text Inputs
+        ['artistText', 'songText', 'lyricText'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', draw);
+        });
+
+        // Ràng buộc thanh trượt
+        Object.keys(STATE).forEach(key => {
+            const el = document.getElementById(key);
+            if (el) {
+                el.addEventListener('input', (e) => {
+                    STATE[key] = parseInt(e.target.value);
+                    document.getElementById(key + 'Val').innerText = STATE[key];
+                    draw();
+                });
+            }
+        });
+
+        // Thiết lập File Ảnh nền, Ảnh khung (Gắn cờ type để phân biệt lúc crop)
+        document.getElementById('uploadBg').addEventListener('change', e => loadImage(e, 'bg'));
+        document.getElementById('uploadFg').addEventListener('change', e => loadImage(e, 'fg'));
+
+        function loadImage(e, type) {
+            const file = e.target.files[0];
+            if (!file) return;
+            // Đặt lại giá trị input để có thể chọn lại cùng 1 file
+            e.target.value = '';
+
+            const reader = new FileReader();
+            reader.onload = event => {
+                showCropper(event.target.result, type);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ---- UI CROPPER LOGIC ----
+        function switchTab(side) {
+            const wrapL = document.getElementById('wrapLeft');
+            const wrapR = document.getElementById('wrapRight');
+            const tabL = document.getElementById('tabLeft');
+            const tabR = document.getElementById('tabRight');
+
+            if (side === 'left') {
+                wrapL.style.display = 'block';
+                wrapR.style.display = 'none';
+                tabL.classList.add('active');
+                tabR.classList.remove('active');
+            } else {
+                wrapL.style.display = 'none';
+                wrapR.style.display = 'block';
+                tabL.classList.remove('active');
+                tabR.classList.add('active');
+            }
+        }
+        function showCropper(imageSrc, type) {
+            currentCropTarget = type;
+            const modal = document.getElementById('cropperModal');
+            const image = document.getElementById('cropperImage');
+
+            // Hiện Modal trước
+            modal.style.display = 'flex';
+            image.src = imageSrc;
+
+            // Xóa instance cũ nếu có
+            if (cropper) {
+                cropper.destroy();
+            }
+
+            // Mở Cropper mới với tỷ lệ chuẩn để cắt xong không bị méo / khuất
+            let aspectRatio = NaN;
+            if (type === 'fg') {
+                // Ép tỷ lệ cho Ảnh Giữa theo đúng kích thước box
+                // Tỉ lệ: 792 / 963 ~ 0.8224
+                aspectRatio = 792 / 963;
+            } else if (type === 'bg') {
+                // Ép tỷ lệ cho Ảnh Nền bằng tổng màn hình 2 khung ghép lại (2160 / 1440 = 1.5)
+                aspectRatio = 2160 / 1440;
+            }
+
+            cropper = new Cropper(image, {
+                aspectRatio: aspectRatio,
+                viewMode: 1, // Restrict crop box
+                autoCropArea: 1, // Kéo max khung cắt ban đầu
+                background: false
+            });
+        }
+
+        function closeCropper() {
+            document.getElementById('cropperModal').style.display = 'none';
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+        }
+
+        function applyCrop() {
+            if (!cropper) return;
+
+            // Lấy dữ liệu mảnh cắt dưới dạng base64 đúng kích thước gốc
+            const canvasData = cropper.getCroppedCanvas({
+                width: currentCropTarget === 'fg' ? 792 : 2160,
+                height: currentCropTarget === 'fg' ? 963 : 1440,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            });
+            const croppedDataUrl = canvasData.toDataURL('image/jpeg', 0.9);
+
+            // Nạp ngược lại vào Canvas
+            const newImg = new Image();
+            newImg.onload = () => {
+                if (currentCropTarget === 'bg') {
+                    imgBg = newImg;
+                } else {
+                    imgFg = newImg;
+                }
+                draw();
+            };
+            newImg.src = croppedDataUrl;
+
+            closeCropper();
+        }
+        // ---- END UI CROPPER ----
+
+        function draw() {
+            renderCanvas(ctxL, 0); // 0 là cavas bên TRÁI
+            renderCanvas(ctxR, 1); // 1 là canvas bên PHẢI
+        }
+
+        // Tái tạo lại logic chia Layout (Vẽ nền trước, ảnh sau cùng)
+        function renderCanvas(ctx, canvasIndex) {
+            // 1. Phủ đen cơ bản
+            ctx.clearRect(0, 0, C_WIDTH, C_HEIGHT);
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, C_WIDTH, C_HEIGHT);
+
+            // 2. Vẽ Nền Gốc Tự Có
+            if (imgBg) {
+                // Background chia đôi trên độ rộng 2160
+                drawSplitBg(ctx, imgBg, canvasIndex);
+            }
+            // Tạo thêm lớp filter mù để giống cái cũ (Nếu muốn)
+            ctx.fillStyle = `rgba(0, 0, 0, 0.4)`;
+            ctx.fillRect(0, 0, C_WIDTH, C_HEIGHT);
+
+            // 3. Vẽ Ảnh Lọt Lòng Ở Giữa 2 KHUNG
+            // Ảnh ở giữa nằm chính giữa độ rộng tổng L+R (2160)
+            const TotalWidth = C_WIDTH * 2;
+            const globalCenterX = TotalWidth / 2;
+            const globalCenterY = C_HEIGHT / 2;
+
+            // Tính toán kích thước Khối ảnh giữa dựa vào fgScale
+            const baseFgWidth = 792;
+            const baseFgHeight = 963;
+            const currentFgWidth = baseFgWidth * (STATE.fgScale / 100);
+            const currentFgHeight = baseFgHeight * (STATE.fgScale / 100);
+
+            // Box ảo ở toàn cục
+            const boxX = globalCenterX - (currentFgWidth / 2);
+            const boxY = globalCenterY - (currentFgHeight / 2);
+
+            // Đưa toạ độ BOX từ toàn cục của hệ 2 màng về hệ tọa độ 1 màng
+            const offsetWidth = (canvasIndex === 0) ? 0 : C_WIDTH;
+            const localBoxX = boxX - offsetWidth;
+
+            ctx.save();
+            ctx.globalAlpha = STATE.fgOpacity / 100;
+
+            // Xén Bo Góc (Clip)
+            ctx.beginPath();
+            ctx.roundRect(localBoxX, boxY, currentFgWidth, currentFgHeight, STATE.fgRadius);
+            ctx.clip();
+
+            // Cấy Ảnh Lòng Trong
+            if (imgFg) {
+                // Mặc định luôn zoom 100%, ko cho dịch x,y
+                drawFillInside(ctx, imgFg, localBoxX, boxY, currentFgWidth, currentFgHeight, 0, 0, 1);
+            } else {
+                ctx.fillStyle = '#374151';
+                ctx.fillRect(localBoxX, boxY, currentFgWidth, currentFgHeight);
+            }
+
+            ctx.restore();
+
+            // 3.5. Vẽ Chữ Lên Ảnh Bên Trái
+            if (canvasIndex === 0) {
+                ctx.save();
+                ctx.fillStyle = "white";
+                ctx.textAlign = "center"; // Căn giữa
+                ctx.textBaseline = "middle";
+
+                // Tính toán toạ độ Y để Cả 2 dòng tự động Căn Giữa quanh Y=606
+                const artistStr = document.getElementById('artistText').value;
+                const songStr = document.getElementById('songText').value;
+                const GAP = 15; // Khoảng cách giữa chữ Ca Sĩ và Bài Hát
+
+                // Ước lượng chiều cao thực tế bằng Size
+                const totalTextHeight = STATE.artistSize + STATE.songSize + GAP;
+
+                // Tâm hội tụ
+                const centralY = 606;
+                // Bắt đầu vẽ từ điểm Y cao nhất cho Artist
+                const startArtistY = centralY - (totalTextHeight / 2) + (STATE.artistSize / 2);
+                const startSongY = startArtistY + (STATE.artistSize / 2) + GAP + (STATE.songSize / 2);
+
+                const artistX = 345;
+                const songX = 345;
+
+                // Vẽ Tên Ca Sĩ
+                ctx.font = `${STATE.artistSize}px "Tonos", sans-serif`;
+                ctx.fillText(artistStr, artistX, startArtistY);
+
+                // Vẽ Tên Bài Hát
+                ctx.font = `${STATE.songSize}px "Paraglide", sans-serif`;
+                ctx.fillText(songStr, songX, startSongY);
+
+                ctx.restore();
+            }
+
+            // 3.6. Vẽ Lời Bài Hát (Nhiều Dòng) Lên Ảnh Bên Phải
+            if (canvasIndex === 1) {
+                ctx.save();
+                ctx.fillStyle = "white";
+                ctx.textAlign = "left"; // Căn trái
+                ctx.textBaseline = "middle";
+                ctx.font = `${STATE.lyricSize}px "Athletic", sans-serif`;
+
+                // Cố định toạ độ X Lời Bài Hát theo screenshot cũ dóng chuẩn, nhưng để Y kéo tay
+                const lyricX = 442;
+
+                const lyricString = document.getElementById('lyricText').value;
+                const lines = lyricString.split('\n'); // Cắt dòng thành mảng
+
+                // Tính tổng chiều cao của khối chữ để dóng giữa Y
+                const totalTextHeight = (lines.length - 1) * STATE.lyricLineHeight;
+                const startY = STATE.lyricY - (totalTextHeight / 2);
+
+                for (let i = 0; i < lines.length; i++) {
+                    const currentY = startY + (i * STATE.lyricLineHeight);
+                    ctx.fillText(lines[i], lyricX, currentY);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // --- Helper: Nền xẻ đôi
+        function drawSplitBg(ctx, img, canvasIndex) {
+            const virtW = C_WIDTH * 2;
+            const ratioImg = img.width / img.height;
+            const ratioCanvas = virtW / C_HEIGHT;
+            let drawW, drawH, drawX, drawY;
+
+            if (ratioImg > ratioCanvas) {
+                drawH = C_HEIGHT; drawW = drawH * ratioImg;
+                drawY = 0; drawX = -(drawW - virtW) / 2;
+            } else {
+                drawW = virtW; drawH = drawW / ratioImg;
+                drawX = 0; drawY = -(drawH - C_HEIGHT) / 2;
+            }
+
+            // Dịch mảnh cắt
+            const offX = (canvasIndex === 0) ? 0 : C_WIDTH;
+            ctx.drawImage(img, drawX - offX, drawY, drawW, drawH);
+        }
+
+        // --- Helper: Lòng Lấp Đầy Box
+        function drawFillInside(ctx, img, x, y, cw, ch, innerX, innerY, zoom) {
+            const ratioImg = img.width / img.height;
+            const ratioCanvas = cw / ch;
+            let drawW, drawH, drawX, drawY;
+
+            if (ratioImg > ratioCanvas) {
+                drawH = ch; drawW = drawH * ratioImg;
+                drawY = y; drawX = x - (drawW - cw) / 2;
+            } else {
+                drawW = cw; drawH = drawW / ratioImg;
+                drawX = x; drawY = y - (drawH - ch) / 2;
+            }
+
+            const newW = drawW * zoom;
+            const newH = drawH * zoom;
+            drawX = drawX - (newW - drawW) / 2 + innerX;
+            drawY = drawY - (newH - drawH) / 2 + innerY;
+
+            ctx.drawImage(img, drawX, drawY, newW, newH);
+        }
+
+        function downloadImage() {
+            const link1 = document.createElement('a');
+            link1.download = 'BanTrai.png';
+            link1.href = canvasLeft.toDataURL('image/png');
+            link1.click();
+
+            setTimeout(() => {
+                const link2 = document.createElement('a');
+                link2.download = 'BanPhai.png';
+                link2.href = canvasRight.toDataURL('image/png');
+                link2.click();
+            }, 500);
+        }
+    </script>
+</body>
+
+</html>
